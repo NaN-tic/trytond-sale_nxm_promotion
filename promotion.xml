@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data>
+        <record model="ir.ui.view" id="promotion_view_form">
+            <field name="model">sale.promotion</field>
+            <field name="inherit" ref="sale_promotion.promotion_view_form"/>
+            <field name="name">promotion_form</field>
+        </record>
+
+        <record model="ir.ui.view" id="promotion_view_tree">
+            <field name="model">sale.promotion</field>
+            <field name="inherit" ref="sale_promotion.promotion_view_list"/>
+            <field name="name">promotion_tree</field>
+        </record>
+
+        <record model="ir.ui.view" id="promotion_nxm_line_view_tree">
+            <field name="model">sale.promotion.nxm.line</field>
+            <field name="type">tree</field>
+            <field name="name">promotion_nxm_line_tree</field>
+        </record>
+
+        <record model="ir.ui.view" id="promotion_nxm_line_view_form">
+            <field name="model">sale.promotion.nxm.line</field>
+            <field name="type">form</field>
+            <field name="name">promotion_nxm_line_form</field>
+        </record>
+    </data>
+</tryton>

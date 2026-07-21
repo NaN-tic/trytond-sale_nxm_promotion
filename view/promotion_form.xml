@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<data>
+    <xpath expr="/form/label[@name='formula']" position="before">
+        <label name="nxm"/>
+    </xpath>
+    <xpath expr="/form/field[@name='formula']" position="before">
+        <field name="nxm"/>
+    </xpath>
+    <xpath expr="/form/separator[@id='pattern']" position="replace"/>
+    <xpath expr="/form/label[@name='amount']" position="replace"/>
+    <xpath expr="/form/field[@name='amount']" position="replace"/>
+    <xpath expr="/form/label[@name='currency']" position="replace"/>
+    <xpath expr="/form/field[@name='currency']" position="replace"/>
+    <xpath expr="/form/group[@id='amount']" position="replace"/>
+    <xpath expr="/form/label[@name='quantity']" position="replace"/>
+    <xpath expr="/form/field[@name='quantity']" position="replace"/>
+    <xpath expr="/form/label[@name='unit']" position="replace"/>
+    <xpath expr="/form/field[@name='unit']" position="replace"/>
+    <xpath expr="/form/notebook" position="replace">
+        <notebook colspan="6">
+            <page id="conditions" string="Conditions"
+                    states="{&quot;invisible&quot;: {&quot;__class__&quot;: &quot;Eval&quot;, &quot;v&quot;: &quot;nxm&quot;, &quot;d&quot;: false}}">
+                <group id="conditions_group" col="6">
+                    <label name="amount"/>
+                    <field name="amount" symbol=""/>
+                    <label name="currency"/>
+                    <field name="currency"/>
+                    <group id="amount" col="-1" colspan="2">
+                        <label name="untaxed_amount"/>
+                        <field name="untaxed_amount" xexpand="0" width="25"/>
+                    </group>
+                    <label name="quantity"/>
+                    <field name="quantity"/>
+                    <label name="unit"/>
+                    <field name="unit"/>
+                    <field name="categories" colspan="2"/>
+                    <field name="products" colspan="2"
+                        view_ids="product.product_view_tree_simple,product.product_view_form_simple"/>
+                </group>
+            </page>
+            <page id="nxm" string="N+M"
+                    states="{&quot;invisible&quot;: {&quot;__class__&quot;: &quot;Not&quot;, &quot;v&quot;: {&quot;__class__&quot;: &quot;Eval&quot;, &quot;v&quot;: &quot;nxm&quot;, &quot;d&quot;: false}}}">
+                <field name="nxm_lines" colspan="6"
+                    view_ids="sale_nxm_promotion.promotion_nxm_line_view_tree,sale_nxm_promotion.promotion_nxm_line_view_form"/>
+            </page>
+        </notebook>
+    </xpath>
+</data>

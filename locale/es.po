@@ -1,0 +1,83 @@
+#
+msgid ""
+msgstr "Content-Type: text/plain; charset=utf-8\n"
+
+msgctxt "field:sale.line,nxm_generated:"
+msgid "N+M Generated"
+msgstr "Generada por N+M"
+
+msgctxt "field:sale.line,nxm_parent_line:"
+msgid "N+M Parent Line"
+msgstr "Línea padre N+M"
+
+msgctxt "field:sale.line,nxm_requested_quantity:"
+msgid "Requested Quantity"
+msgstr "Cantidad solicitada"
+
+msgctxt "field:sale.promotion,nxm:"
+msgid "N+M Promotion"
+msgstr "Promoción N+M"
+
+msgctxt "field:sale.promotion,nxm_lines:"
+msgid "N+M Lines"
+msgstr "Líneas N+M"
+
+msgctxt "field:sale.promotion.nxm.line,default_package:"
+msgid "Default Package"
+msgstr "Empaquetado por defecto"
+
+msgctxt "field:sale.promotion.nxm.line,free_package_quantity:"
+msgid "Free Package Quantity"
+msgstr "Cantidad de paquetes gratis"
+
+msgctxt "field:sale.promotion.nxm.line,free_quantity:"
+msgid "Free Quantity"
+msgstr "Cantidad gratis"
+
+msgctxt "field:sale.promotion.nxm.line,package_quantity:"
+msgid "Package Quantity"
+msgstr "Cantidad de paquetes"
+
+msgctxt "field:sale.promotion.nxm.line,product:"
+msgid "Product"
+msgstr "Producto"
+
+msgctxt "field:sale.promotion.nxm.line,product_template:"
+msgid "Product Template"
+msgstr "Plantilla de producto"
+
+msgctxt "field:sale.promotion.nxm.line,promotion:"
+msgid "Promotion"
+msgstr "Promoción"
+
+msgctxt "field:sale.promotion.nxm.line,quantity:"
+msgid "Quantity"
+msgstr "Cantidad"
+
+msgctxt "field:sale.promotion.nxm.line,unit:"
+msgid "Unit"
+msgstr "Unidad"
+
+msgctxt "help:sale.line,nxm_requested_quantity:"
+msgid ""
+"Original quantity requested by the customer before the promotion splits "
+"the line."
+msgstr ""
+"Cantidad original solicitada por el cliente antes de que la promoción "
+"divida la línea."
+
+msgctxt "help:sale.promotion,nxm:"
+msgid "Generate free sale lines instead of changing unit prices."
+msgstr "Genera líneas de venta gratis en lugar de cambiar los precios unitarios."
+
+msgctxt "model:sale.promotion.nxm.line,string:"
+msgid "Sale Promotion N+M Line"
+msgstr "Línea N+M de promoción de venta"
+
+msgctxt "view:sale.promotion:"
+msgid "Conditions"
+msgstr "Condiciones"
+
+msgctxt "view:sale.promotion:"
+msgid "N+M"
+msgstr "N+M"

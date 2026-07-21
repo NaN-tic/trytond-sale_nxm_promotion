@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<form col="4">
+    <label name="product"/>
+    <field name="product"/>
+    <label name="default_package"/>
+    <field name="default_package"/>
+    <label name="quantity"/>
+    <field name="quantity"/>
+    <label name="package_quantity"/>
+    <field name="package_quantity"/>
+    <label name="free_quantity"/>
+    <field name="free_quantity"/>
+    <label name="free_package_quantity"/>
+    <field name="free_package_quantity"/>
+</form>
