@@ -39,7 +39,11 @@ class TestNxmPromotion(unittest.TestCase):
 
         Party = Model.get('party.party')
         customer = Party(name='Customer')
+        address = customer.addresses.new()
+        address.street = 'Main Street 1'
+        address.city = 'Barcelona'
         customer.save()
+        invoice_address = customer.addresses[-1]
 
         ProductCategory = Model.get('product.category')
         account_category = ProductCategory(name='Account Category')
@@ -115,6 +119,8 @@ class TestNxmPromotion(unittest.TestCase):
         sale_line = sale.lines.new()
         sale_line.product = product
         sale_line.quantity = 5
+        sale.party = customer
+        sale.invoice_address = invoice_address
         sale.save()
         sale.reload()
 
@@ -187,6 +193,8 @@ class TestNxmPromotion(unittest.TestCase):
         package_sale_line.product = packaged_product
         self.assertEqual(package_sale_line.product_package, packaged_product_box)
         package_sale_line.quantity = 150
+        package_sale.party = customer
+        package_sale.invoice_address = invoice_address
         package_sale.save()
         package_sale.reload()
 
