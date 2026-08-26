@@ -2,10 +2,8 @@
 <!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
 this repository contains the full copyright notices and license terms. -->
 <data>
-    <xpath expr="/form/label[@name='formula']" position="before">
+    <xpath expr="/form/field[@name='formula']" position="after">
         <label name="nxm"/>
-    </xpath>
-    <xpath expr="/form/field[@name='formula']" position="before">
         <field name="nxm"/>
     </xpath>
     <xpath expr="/form/separator[@id='pattern']" position="replace"/>
@@ -22,19 +20,18 @@ this repository contains the full copyright notices and license terms. -->
         <notebook colspan="6">
             <page id="conditions" string="Conditions"
                     states="{&quot;invisible&quot;: {&quot;__class__&quot;: &quot;Eval&quot;, &quot;v&quot;: &quot;nxm&quot;, &quot;d&quot;: false}}">
-                <group id="conditions_group" col="6">
+                <group id="conditions_group" col="4">
                     <label name="amount"/>
-                    <field name="amount" symbol=""/>
+                    <field name="amount"/>
                     <label name="currency"/>
                     <field name="currency"/>
-                    <group id="amount" col="-1" colspan="2">
-                        <label name="untaxed_amount"/>
-                        <field name="untaxed_amount" xexpand="0" width="25"/>
-                    </group>
+                    <label name="untaxed_amount"/>
+                    <field name="untaxed_amount" xexpand="0" width="25"/>
                     <label name="quantity"/>
                     <field name="quantity"/>
                     <label name="unit"/>
                     <field name="unit"/>
+                    <newline/>
                     <field name="categories" colspan="2"/>
                     <field name="products" colspan="2"
                         view_ids="product.product_view_tree_simple,product.product_view_form_simple"/>
