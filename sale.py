@@ -52,14 +52,15 @@ class Sale(metaclass=PoolMeta):
         if not self.lines:
             return
 
+        promotions = Pool().get('sale.promotion').get_nxm_promotions(self)
         normalized_lines = []
         for line in self.lines:
             if line.nxm_generated:
                 continue
-            normalized_lines.extend(self._get_nxm_lines(line))
+            normalized_lines.extend(self._get_nxm_lines(line, promotions))
         self.lines = normalized_lines
 
-    def _get_nxm_lines(self, line):
+    def _get_nxm_lines(self, line, promotions):
         if line.type != 'line' or not line.product or not line.unit:
             line.nxm_requested_quantity = None
             line.nxm_parent_line = None
@@ -67,7 +68,8 @@ class Sale(metaclass=PoolMeta):
 
         requested = line.nxm_requested_quantity or line.quantity
         had_nxm_quantity = line.nxm_requested_quantity is not None
-        promotion = line.get_nxm_promotion(requested_quantity=requested)
+        promotion = line.get_nxm_promotion(
+            requested_quantity=requested, promotions=promotions)
         if not promotion or not requested or requested <= 0:
             if requested and requested > 0:
                 self._set_line_quantity(line, requested)
@@ -251,14 +253,20 @@ class Promotion(metaclass=PoolMeta):
         return max(quantities or [0])
 
     @classmethod
-    def get_nxm_promotion(cls, sale, line, requested_quantity=None):
-        promotions = sorted(
+    def get_nxm_promotions(cls, sale):
+        return sorted(
             (p for p in cls.search(cls._promotions_domain(sale)) if p.nxm),
             key=lambda p: (
                 bool(p.nxm_lines), bool(p.products), bool(p.categories),
                 bool(p.price_list),
                 p._get_nxm_sort_quantity()),
             reverse=True)
+
+    @classmethod
+    def get_nxm_promotion(
+            cls, sale, line, requested_quantity=None, promotions=None):
+        if promotions is None:
+            promotions = cls.get_nxm_promotions(sale)
         for promotion in promotions:
             if promotion.is_valid_nxm_line(
                     line, requested_quantity=requested_quantity):
@@ -483,12 +491,13 @@ class SaleLine(metaclass=PoolMeta):
         'product', 'quantity', 'unit', 'sale', '_parent_sale.company',
         '_parent_sale.sale_date', '_parent_sale.price_list',
         methods=['compute_unit_price'])
-    def get_nxm_promotion(self, requested_quantity=None):
+    def get_nxm_promotion(self, requested_quantity=None, promotions=None):
         Promotion = Pool().get('sale.promotion')
         if not self.sale or not self.product or not self.unit:
             return
         return Promotion.get_nxm_promotion(
-            self.sale, self, requested_quantity=requested_quantity)
+            self.sale, self, requested_quantity=requested_quantity,
+            promotions=promotions)
 
     @fields.depends(
         'product', 'quantity', 'nxm_generated',
