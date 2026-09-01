@@ -58,9 +58,6 @@ class Sale(metaclass=PoolMeta):
 
     @classmethod
     def quote(cls, sales):
-        if getattr(Transaction(), '_skip_nxm_sync', False):
-            return super().quote(sales)
-        cls._sync_sales_nxm_lines(sales)
         return super().quote(sales)
 
     def apply_promotion(self):
