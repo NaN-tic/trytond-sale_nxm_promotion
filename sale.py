@@ -6,6 +6,7 @@ from math import floor
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Bool, Eval
+from trytond.transaction import Transaction
 
 
 class Sale(metaclass=PoolMeta):
@@ -15,8 +16,52 @@ class Sale(metaclass=PoolMeta):
         'lines', 'currency', 'company', 'sale_date', 'price_list',
         methods=['get_tax_amount'])
     def on_change_lines(self):
-        self._sync_nxm_lines()
         super().on_change_lines()
+
+    @classmethod
+    def _sync_sales_nxm_lines(cls, sales):
+        transaction = Transaction()
+        if getattr(transaction, '_skip_nxm_sync', False):
+            return
+        to_sync = [sale for sale in sales if sale.state == 'draft']
+        if not to_sync:
+            return
+        transaction._skip_nxm_sync = True
+        try:
+            for sale in to_sync:
+                sale._sync_nxm_lines()
+            cls.save(to_sync)
+        finally:
+            transaction._skip_nxm_sync = False
+
+    @classmethod
+    def create(cls, vlist):
+        sales = super().create(vlist)
+        if getattr(Transaction(), '_skip_nxm_sync', False):
+            return sales
+        cls._sync_sales_nxm_lines(sales)
+        return sales
+
+    @classmethod
+    def write(cls, *args):
+        actions = iter(args)
+        sale_ids = []
+        to_write = []
+        for sales, values in zip(actions, actions):
+            to_write.extend((sales, values))
+            sale_ids.extend(s.id for s in sales)
+        super().write(*to_write)
+        if getattr(Transaction(), '_skip_nxm_sync', False):
+            return
+        if sale_ids:
+            cls._sync_sales_nxm_lines(cls.browse(list(set(sale_ids))))
+
+    @classmethod
+    def quote(cls, sales):
+        if getattr(Transaction(), '_skip_nxm_sync', False):
+            return super().quote(sales)
+        cls._sync_sales_nxm_lines(sales)
+        return super().quote(sales)
 
     def apply_promotion(self):
         Promotion = Pool().get('sale.promotion')
