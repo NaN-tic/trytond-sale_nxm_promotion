@@ -209,21 +209,25 @@ class Sale(metaclass=PoolMeta):
             line.original_unit_price = line.unit_price
 
     def _set_line_quantity(self, line, quantity, use_on_change=False):
+        discount_rate = line.discount_rate
+        discount_amount = line.discount_amount
         line.quantity = quantity
         if use_on_change:
             line.on_change_quantity()
             return
         if ('product_package' in line._fields and 'package_quantity' in line._fields
                 and line.product_package and line.product_package.quantity):
-            line.package_quantity = (
-                line.quantity / line.product_package.quantity)
+                line.package_quantity = (
+                    line.quantity / line.product_package.quantity)
         if line.product:
             line.unit_price = line.compute_unit_price()
         line.base_price = line.compute_base_price()
-        if line.discount_rate not in (None, Decimal('1.0000')):
-            line.discount_rate = line.on_change_with_discount_rate()
-            line.discount_amount = line.on_change_with_discount_amount()
-            line.discount = line.on_change_with_discount()
+        if discount_rate is not None:
+            line.discount_rate = discount_rate
+            line.on_change_discount_rate()
+        elif discount_amount is not None:
+            line.discount_amount = discount_amount
+            line.on_change_discount_amount()
         line.amount = line.on_change_with_amount()
 
     def _collapse_nxm_lines(self):
