@@ -32,24 +32,23 @@ class Sale(metaclass=PoolMeta):
         if getattr(transaction, '_skip_nxm_sync', False):
             return
         Promotion = Pool().get('sale.promotion')
-        has_active_nxm_by_key = {}
+        has_active_nxm_by_price_list = {}
         to_sync = []
         for sale in sales:
             if sale.state != 'draft':
                 continue
+            price_list_id = sale.price_list.id if sale.price_list else None
+            if price_list_id not in has_active_nxm_by_price_list:
+                has_active_nxm_by_price_list[price_list_id] = (
+                    Promotion.has_active_nxm_price_list(sale))
+            if not has_active_nxm_by_price_list[price_list_id]:
+                if sale._has_nxm_lines_to_cleanup():
+                    to_sync.append(sale)
+                continue
             if sale._has_nxm_lines_to_cleanup():
                 to_sync.append(sale)
                 continue
-            key = (
-                sale.company.id if sale.company else None,
-                sale.sale_date,
-                sale.price_list.id if sale.price_list else None,
-            )
-            if key not in has_active_nxm_by_key:
-                has_active_nxm_by_key[key] = (
-                    Promotion.has_active_nxm_promotion(sale))
-            if has_active_nxm_by_key[key]:
-                to_sync.append(sale)
+            to_sync.append(sale)
         if not to_sync:
             return
         transaction._skip_nxm_sync = True
@@ -331,10 +330,24 @@ class Promotion(metaclass=PoolMeta):
             reverse=True)
 
     @classmethod
-    def has_active_nxm_promotion(cls, sale):
+    def has_active_nxm_price_list(cls, sale):
+        Date = Pool().get('ir.date')
+        if not sale.price_list:
+            return False
+        with Transaction().set_context(company=sale.company.id):
+            sale_date = sale.sale_date or Date.today()
         return bool(cls.search([
-                    *cls._promotions_domain(sale),
+                    ('price_list', '=', sale.price_list.id),
+                    ('company', '=', sale.company.id),
                     ('nxm', '=', True),
+                    ['OR',
+                        ('start_date', '<=', sale_date),
+                        ('start_date', '=', None),
+                        ],
+                    ['OR',
+                        ('end_date', '=', None),
+                        ('end_date', '>=', sale_date),
+                        ],
                     ], limit=1))
 
     @classmethod
