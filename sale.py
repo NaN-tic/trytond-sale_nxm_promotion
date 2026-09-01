@@ -18,12 +18,38 @@ class Sale(metaclass=PoolMeta):
     def on_change_lines(self):
         super().on_change_lines()
 
+    def _has_nxm_lines_to_cleanup(self):
+        for line in self.lines or []:
+            if (line.nxm_generated
+                    or line.nxm_requested_quantity is not None
+                    or line.promotion):
+                return True
+        return False
+
     @classmethod
     def _sync_sales_nxm_lines(cls, sales):
         transaction = Transaction()
         if getattr(transaction, '_skip_nxm_sync', False):
             return
-        to_sync = [sale for sale in sales if sale.state == 'draft']
+        Promotion = Pool().get('sale.promotion')
+        has_active_nxm_by_key = {}
+        to_sync = []
+        for sale in sales:
+            if sale.state != 'draft':
+                continue
+            if sale._has_nxm_lines_to_cleanup():
+                to_sync.append(sale)
+                continue
+            key = (
+                sale.company.id if sale.company else None,
+                sale.sale_date,
+                sale.price_list.id if sale.price_list else None,
+            )
+            if key not in has_active_nxm_by_key:
+                has_active_nxm_by_key[key] = (
+                    Promotion.has_active_nxm_promotion(sale))
+            if has_active_nxm_by_key[key]:
+                to_sync.append(sale)
         if not to_sync:
             return
         transaction._skip_nxm_sync = True
@@ -303,6 +329,13 @@ class Promotion(metaclass=PoolMeta):
                 bool(p.price_list),
                 p._get_nxm_sort_quantity()),
             reverse=True)
+
+    @classmethod
+    def has_active_nxm_promotion(cls, sale):
+        return bool(cls.search([
+                    *cls._promotions_domain(sale),
+                    ('nxm', '=', True),
+                    ], limit=1))
 
     @classmethod
     def get_nxm_promotion(
