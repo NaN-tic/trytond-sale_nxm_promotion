@@ -19,12 +19,40 @@ class Sale(metaclass=PoolMeta):
         super().on_change_lines()
 
     def _has_nxm_lines_to_cleanup(self):
-        for line in self.lines or []:
-            if (line.nxm_generated
-                    or line.nxm_requested_quantity is not None
-                    or line.promotion):
-                return True
-        return False
+        if not self.id:
+            for line in self.lines or []:
+                if (line.nxm_generated
+                        or (line.promotion and line.promotion.nxm)):
+                    return True
+            return False
+
+        Line = Pool().get('sale.line')
+        return bool(Line.search([
+                    ('sale', '=', self.id),
+                    ['OR',
+                        ('nxm_generated', '=', True),
+                        ('promotion.nxm', '=', True),
+                        ],
+                    ], limit=1))
+
+    def _clear_nxm_requested_quantities(self):
+        if not self.id:
+            return
+
+        Line = Pool().get('sale.line')
+        lines = Line.search([
+                ('sale', '=', self.id),
+                ('nxm_generated', '=', False),
+                ['OR',
+                    ('promotion', '=', None),
+                    ('promotion.nxm', '=', False),
+                    ],
+                ('nxm_requested_quantity', '!=', None),
+                ])
+        if lines:
+            Line.write(lines, {
+                    'nxm_requested_quantity': None,
+                    })
 
     @classmethod
     def _sync_sales_nxm_lines(cls, sales):
@@ -32,21 +60,24 @@ class Sale(metaclass=PoolMeta):
         if getattr(transaction, '_skip_nxm_sync', False):
             return
         Promotion = Pool().get('sale.promotion')
-        has_active_nxm_by_price_list = {}
+        has_active_nxm_by_context = {}
         to_sync = []
         for sale in sales:
             if sale.state != 'draft':
                 continue
-            price_list_id = sale.price_list.id if sale.price_list else None
-            if price_list_id not in has_active_nxm_by_price_list:
-                has_active_nxm_by_price_list[price_list_id] = (
-                    Promotion.has_active_nxm_price_list(sale))
-            if not has_active_nxm_by_price_list[price_list_id]:
+            key = (
+                sale.company.id,
+                sale.sale_date,
+                sale.price_list.id if sale.price_list else None,
+                )
+            if key not in has_active_nxm_by_context:
+                has_active_nxm_by_context[key] = (
+                    Promotion.has_active_nxm_promotions(sale))
+            if not has_active_nxm_by_context[key]:
                 if sale._has_nxm_lines_to_cleanup():
                     to_sync.append(sale)
-                continue
-            if sale._has_nxm_lines_to_cleanup():
-                to_sync.append(sale)
+                else:
+                    sale._clear_nxm_requested_quantities()
                 continue
             to_sync.append(sale)
         if not to_sync:
@@ -138,25 +169,12 @@ class Sale(metaclass=PoolMeta):
         promotion = line.get_nxm_promotion(
             requested_quantity=requested, promotions=promotions)
         if not promotion or not requested or requested <= 0:
-            if requested and requested > 0:
-                self._set_line_quantity(line, requested)
-            line.nxm_requested_quantity = None
-            line.nxm_parent_line = None
-            if had_nxm_quantity:
-                line.promotion = None
-            line.original_unit_price = None
-            return [line]
+            return [self._clear_nxm_line(line, requested, had_nxm_quantity)]
 
         quantities = promotion.get_nxm_line_quantities(
             line, requested_quantity=requested)
         if not quantities:
-            self._set_line_quantity(line, requested)
-            line.nxm_requested_quantity = None
-            line.nxm_parent_line = None
-            if had_nxm_quantity:
-                line.promotion = None
-            line.original_unit_price = None
-            return [line]
+            return [self._clear_nxm_line(line, requested, had_nxm_quantity)]
 
         line.nxm_requested_quantity = requested
         line.nxm_parent_line = None
@@ -174,12 +192,22 @@ class Sale(metaclass=PoolMeta):
             lines.append(free_line)
         return lines
 
+    def _clear_nxm_line(self, line, requested, had_nxm_quantity):
+        if requested and requested > 0:
+            self._set_line_quantity(line, requested)
+        line.nxm_requested_quantity = None
+        line.nxm_parent_line = None
+        if had_nxm_quantity:
+            line.promotion = None
+        line.original_unit_price = None
+        return line
+
     def _new_generated_line(self, source, quantity, promotion, free):
         if quantity <= 0:
             return None
         line = source.__class__()
         line.nxm_generated = True
-        line.nxm_parent_line = None
+        line.nxm_parent_line = source
         line.nxm_requested_quantity = None
         line.sale = self
         line.type = source.type
@@ -326,7 +354,9 @@ class Promotion(metaclass=PoolMeta):
     @classmethod
     def get_nxm_promotions(cls, sale):
         return sorted(
-            (p for p in cls.search(cls._promotions_domain(sale)) if p.nxm),
+            cls.search(cls._promotions_domain(sale) + [
+                    ('nxm', '=', True),
+                    ]),
             key=lambda p: (
                 bool(p.nxm_lines), bool(p.products), bool(p.categories),
                 bool(p.price_list),
@@ -334,25 +364,12 @@ class Promotion(metaclass=PoolMeta):
             reverse=True)
 
     @classmethod
-    def has_active_nxm_price_list(cls, sale):
-        Date = Pool().get('ir.date')
-        if not sale.price_list:
-            return False
-        with Transaction().set_context(company=sale.company.id):
-            sale_date = sale.sale_date or Date.today()
-        return bool(cls.search([
-                    ('price_list', '=', sale.price_list.id),
-                    ('company', '=', sale.company.id),
+    def has_active_nxm_promotions(cls, sale):
+        return bool(cls.search(
+                cls._promotions_domain(sale) + [
                     ('nxm', '=', True),
-                    ['OR',
-                        ('start_date', '<=', sale_date),
-                        ('start_date', '=', None),
-                        ],
-                    ['OR',
-                        ('end_date', '=', None),
-                        ('end_date', '>=', sale_date),
-                        ],
-                    ], limit=1))
+                    ],
+                limit=1))
 
     @classmethod
     def get_nxm_promotion(
@@ -406,18 +423,13 @@ class Promotion(metaclass=PoolMeta):
         if block_count <= 0:
             return
 
-        remainder = promotion_quantity - (block_count * buy_quantity)
         base_paid = self._quantity_from_promotion_unit(
-            line, block_count * buy_quantity)
-        extra_paid = []
-        if remainder > 0:
-            extra_paid.append(self._quantity_from_promotion_unit(
-                    line, remainder))
+            line, promotion_quantity)
         free = self._quantity_from_promotion_unit(
             line, block_count * free_quantity)
         return {
             'base_paid': base_paid,
-            'extra_paid': extra_paid,
+            'extra_paid': [],
             'free': free,
             }
 
@@ -592,13 +604,16 @@ class SaleLine(metaclass=PoolMeta):
             promotions=promotions)
 
     @fields.depends(
-        'product', 'quantity', 'nxm_generated',
+        'product', 'quantity', 'promotion', 'nxm_generated',
+        'nxm_requested_quantity',
         methods=['compute_unit_price', 'on_change_with_amount',
             'on_change_with_discount_rate', 'on_change_with_discount_amount',
             'on_change_with_discount'])
     def on_change_quantity(self):
         super().on_change_quantity()
-        if not self.nxm_generated:
+        if (not self.nxm_generated
+                and (self.nxm_requested_quantity is not None
+                    or (self.promotion and self.promotion.nxm))):
             self.nxm_requested_quantity = self.quantity
 
     @fields.depends(

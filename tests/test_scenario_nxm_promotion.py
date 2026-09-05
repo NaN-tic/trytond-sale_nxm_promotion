@@ -125,6 +125,7 @@ class TestNxmPromotion(unittest.TestCase):
         self.assertEqual(paid_line.promotion, promotion)
         self.assertEqual(free_line.quantity, 1)
         self.assertTrue(free_line.nxm_generated)
+        self.assertEqual(free_line.nxm_parent_line, paid_line)
         self.assertEqual(free_line.promotion, promotion)
         self.assertEqual(free_line.discount_rate, Decimal('1.0000'))
         self.assertEqual(free_line.amount, Decimal('0.00'))
@@ -143,25 +144,22 @@ class TestNxmPromotion(unittest.TestCase):
         sale.save()
         sale.reload()
 
-        self.assertEqual(len(sale.lines), 3)
-        paid_line, extra_paid_line, free_line = sale.lines
-        self.assertEqual(paid_line.quantity, 5)
+        self.assertEqual(len(sale.lines), 2)
+        paid_line, free_line = sale.lines
+        self.assertEqual(paid_line.quantity, 6)
         self.assertEqual(paid_line.nxm_requested_quantity, 6)
         self.assertEqual(paid_line.promotion, promotion)
-        self.assertEqual(extra_paid_line.quantity, 1)
-        self.assertTrue(extra_paid_line.nxm_generated)
-        self.assertEqual(extra_paid_line.promotion, promotion)
         self.assertEqual(free_line.quantity, 1)
         self.assertTrue(free_line.nxm_generated)
+        self.assertEqual(free_line.nxm_parent_line, paid_line)
         self.assertEqual(free_line.discount_rate, Decimal('1.0000'))
         self.assertEqual(free_line.amount, Decimal('0.00'))
 
         sale.click('quote')
         sale.reload()
-        self.assertEqual(len(sale.lines), 3)
-        paid_line, extra_paid_line, free_line = sale.lines
+        self.assertEqual(len(sale.lines), 2)
+        paid_line, free_line = sale.lines
         self.assertEqual(paid_line.promotion, promotion)
-        self.assertEqual(extra_paid_line.promotion, promotion)
         self.assertEqual(free_line.promotion, promotion)
 
         package_promotion = Promotion()
@@ -190,19 +188,62 @@ class TestNxmPromotion(unittest.TestCase):
         package_sale.save()
         package_sale.reload()
 
-        self.assertEqual(len(package_sale.lines), 3)
-        paid_line, extra_paid_line, free_line = package_sale.lines
-        self.assertEqual(paid_line.quantity, 125)
-        self.assertEqual(paid_line.package_quantity, 5)
+        self.assertEqual(len(package_sale.lines), 2)
+        paid_line, free_line = package_sale.lines
+        self.assertEqual(paid_line.quantity, 150)
+        self.assertEqual(paid_line.package_quantity, 6)
         self.assertEqual(paid_line.nxm_requested_quantity, 150)
         self.assertEqual(paid_line.promotion, package_promotion)
-        self.assertEqual(extra_paid_line.quantity, 25)
-        self.assertEqual(extra_paid_line.package_quantity, 1)
-        self.assertTrue(extra_paid_line.nxm_generated)
-        self.assertEqual(extra_paid_line.promotion, package_promotion)
         self.assertEqual(free_line.quantity, 25)
         self.assertEqual(free_line.package_quantity, 1)
         self.assertTrue(free_line.nxm_generated)
         self.assertEqual(free_line.promotion, package_promotion)
         self.assertEqual(free_line.discount_rate, Decimal('1.0000'))
         self.assertEqual(free_line.amount, Decimal('0.00'))
+
+        promotion.active = False
+        promotion.save()
+        package_promotion.active = False
+        package_promotion.save()
+
+        sale_without_promotion = Sale()
+        sale_without_promotion.party = customer
+        sale_without_promotion.payment_term = payment_term
+        sale_without_promotion.invoice_method = 'order'
+        sale_without_promotion_line = sale_without_promotion.lines.new()
+        sale_without_promotion_line.product = product
+        sale_without_promotion_line.quantity = 5
+        self.assertEqual(
+            sale_without_promotion_line.nxm_requested_quantity, None)
+        sale_without_promotion.save()
+        sale_without_promotion.reload()
+
+        self.assertEqual(len(sale_without_promotion.lines), 1)
+        line, = sale_without_promotion.lines
+        self.assertEqual(line.quantity, 5)
+        self.assertEqual(line.nxm_requested_quantity, None)
+        self.assertEqual(line.promotion, None)
+
+        normal_promotion = Promotion()
+        normal_promotion.name = 'Normal promotion'
+        normal_promotion.company = company
+        normal_promotion.formula = 'unit_price'
+        normal_promotion.save()
+
+        sale_with_normal_promotion = Sale()
+        sale_with_normal_promotion.party = customer
+        sale_with_normal_promotion.payment_term = payment_term
+        sale_with_normal_promotion.invoice_method = 'order'
+        sale_with_normal_promotion_line = sale_with_normal_promotion.lines.new()
+        sale_with_normal_promotion_line.product = product
+        sale_with_normal_promotion_line.quantity = 5
+        sale_with_normal_promotion_line.promotion = normal_promotion
+        sale_with_normal_promotion_line.original_unit_price = Decimal('10')
+        sale_with_normal_promotion.save()
+        sale_with_normal_promotion.reload()
+
+        self.assertEqual(len(sale_with_normal_promotion.lines), 1)
+        line, = sale_with_normal_promotion.lines
+        self.assertEqual(line.quantity, 5)
+        self.assertEqual(line.nxm_requested_quantity, None)
+        self.assertEqual(line.promotion, normal_promotion)
