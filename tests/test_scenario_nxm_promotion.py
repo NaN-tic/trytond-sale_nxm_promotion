@@ -88,12 +88,21 @@ class TestNxmPromotion(unittest.TestCase):
         packaged_product.cost_price = Decimal('5')
         packaged_product.save()
 
+        packaged_product_pack = Package()
+        packaged_product_pack.product = packaged_product
+        packaged_product_pack.quantity = 5
+        packaged_product_pack.name = 'packaged product pack'
+        packaged_product_pack.is_default = True
+        packaged_product_pack.save()
+
         packaged_product_box = Package()
         packaged_product_box.product = packaged_product
         packaged_product_box.quantity = 25
         packaged_product_box.name = 'packaged product box'
-        packaged_product_box.is_default = True
+        packaged_product_box.is_default = False
         packaged_product_box.save()
+        packaged_product.default_sale_package = packaged_product_box
+        packaged_product.save()
 
         payment_term = create_payment_term()
         payment_term.save()
@@ -200,14 +209,42 @@ class TestNxmPromotion(unittest.TestCase):
         paid_line, free_line = package_sale.lines
         self.assertEqual(paid_line.quantity, 150)
         self.assertEqual(paid_line.package_quantity, 6)
+        self.assertEqual(paid_line.product_package, packaged_product_box)
         self.assertEqual(paid_line.nxm_requested_quantity, 150)
         self.assertEqual(paid_line.promotion, package_promotion)
         self.assertEqual(free_line.quantity, 25)
         self.assertEqual(free_line.package_quantity, 1)
+        self.assertEqual(free_line.product_package, packaged_product_box)
         self.assertTrue(free_line.nxm_generated)
         self.assertEqual(free_line.promotion, package_promotion)
         self.assertEqual(free_line.discount_rate, Decimal('1.0000'))
         self.assertEqual(free_line.amount, Decimal('0.00'))
+
+        # Generated lines retain an explicit package choice, including no package.
+        for package, paid_packages, free_packages in [
+                (packaged_product_pack, 30, 5),
+                (None, None, None)]:
+            with self.subTest(package=package):
+                custom_sale = Sale()
+                custom_sale.party = customer
+                custom_sale.payment_term = payment_term
+                custom_sale.invoice_method = 'order'
+                custom_line = custom_sale.lines.new()
+                custom_line.product = packaged_product
+                custom_line.product_package = package
+                custom_line.quantity = 150
+                custom_sale.invoice_address = invoice_address
+                custom_sale.save()
+                custom_sale.reload()
+
+                paid_line, free_line = custom_sale.lines
+                self.assertEqual(paid_line.quantity, 150)
+                self.assertEqual(free_line.quantity, 25)
+                self.assertEqual(paid_line.product_package, package)
+                self.assertEqual(free_line.product_package, package)
+                self.assertEqual(paid_line.package_quantity, paid_packages)
+                self.assertEqual(free_line.package_quantity, free_packages)
+                self.assertEqual(free_line.amount, Decimal('0.00'))
 
         promotion.active = False
         promotion.save()

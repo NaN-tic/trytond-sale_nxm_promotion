@@ -215,6 +215,8 @@ class Sale(metaclass=PoolMeta):
         line.unit = source.unit
         line.taxes = list(source.taxes or [])
         line.on_change_product()
+        if 'product_package' in line._fields:
+            line.product_package = source.product_package
         line.description = source.description
         self._set_line_quantity(line, quantity, use_on_change=True)
         self._mark_promotion_line(line, promotion)
@@ -242,11 +244,10 @@ class Sale(metaclass=PoolMeta):
         line.quantity = quantity
         if use_on_change:
             line.on_change_quantity()
+        if 'package_quantity' in line._fields:
+            line.package_quantity = line.on_change_with_package_quantity()
+        if use_on_change:
             return
-        if ('product_package' in line._fields and 'package_quantity' in line._fields
-                and line.product_package and line.product_package.quantity):
-                line.package_quantity = (
-                    line.quantity / line.product_package.quantity)
         if line.product:
             line.unit_price = line.compute_unit_price()
         line.base_price = line.compute_base_price()
@@ -330,8 +331,8 @@ class Promotion(metaclass=PoolMeta):
         if not package:
             if 'product_package' in line._fields and line.product_package:
                 package = line.product_package
-            elif 'default_package' in line.product._fields:
-                package = line.product.default_package
+            else:
+                package = nxm_line._get_product_default_package()
         if not package or not package.quantity:
             return None, None
 
@@ -485,6 +486,8 @@ class PromotionNxmLine(ModelSQL, ModelView):
     def _get_product_default_package(self):
         if not self.product:
             return
+        if hasattr(self.product, 'get_sale_package'):
+            return self.product.get_sale_package()
         Package = Pool().get('product.package')
         packages = Package.search([
                 ('product', '=', self.product.id),
