@@ -6,7 +6,7 @@ from math import floor
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Bool, Eval
-from trytond.transaction import Transaction
+from trytond.transaction import Transaction, without_check_access
 
 
 class Sale(metaclass=PoolMeta):
@@ -50,8 +50,9 @@ class Sale(metaclass=PoolMeta):
                 ('nxm_requested_quantity', '!=', None),
                 ])
         if lines:
-            Line.write(lines, {
-                    'nxm_requested_quantity': None,
+            with without_check_access():
+                Line.write(lines, {
+                        'nxm_requested_quantity': None,
                     })
 
     @classmethod
@@ -290,11 +291,11 @@ class Promotion(metaclass=PoolMeta):
     @classmethod
     def __setup__(cls):
         super().__setup__()
-        readonly = Eval('nxm', False)
-        if cls.formula.states.get('readonly'):
-            cls.formula.states['readonly'] |= readonly
+        editable = ~Eval('nxm', False)
+        if cls.formula.states.get('editable'):
+            cls.formula.states['editable'] &= editable
         else:
-            cls.formula.states['readonly'] = readonly
+            cls.formula.states['editable'] = editable
 
     @fields.depends('nxm')
     def on_change_nxm(self):
@@ -567,11 +568,11 @@ class SaleLine(metaclass=PoolMeta):
     def __setup__(cls):
         super().__setup__()
         for field in [cls.product, cls.quantity, cls.unit, cls.unit_price]:
-            readonly = field.states.get('readonly')
-            if readonly is not None:
-                field.states['readonly'] = readonly | Eval('nxm_generated', False)
+            editable = ~Eval('nxm_generated', False)
+            if field.states.get('editable') is not None:
+                field.states['editable'] &= editable
             else:
-                field.states['readonly'] = Eval('nxm_generated', False)
+                field.states['editable'] = editable
 
     @classmethod
     def create(cls, vlist):
