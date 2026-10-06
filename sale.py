@@ -575,17 +575,9 @@ class SaleLine(metaclass=PoolMeta):
                 field.states['editable'] = editable
 
     @classmethod
-    def create(cls, vlist):
-        vlist = [cls._set_original_unit_price(values.copy()) for values in vlist]
-        return super().create(vlist)
-
-    @classmethod
-    def write(cls, *args):
-        actions = iter(args)
-        to_write = []
-        for lines, values in zip(actions, actions):
-            to_write.extend((lines, cls._set_original_unit_price(values.copy())))
-        super().write(*to_write)
+    def preprocess_values(cls, mode, values):
+        values = super().preprocess_values(mode, values)
+        return cls._set_original_unit_price(values)
 
     @staticmethod
     def _set_original_unit_price(values):

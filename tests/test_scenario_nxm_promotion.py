@@ -283,7 +283,6 @@ class TestNxmPromotion(unittest.TestCase):
         sale_with_normal_promotion_line.product = product
         sale_with_normal_promotion_line.quantity = 5
         sale_with_normal_promotion_line.promotion = normal_promotion
-        sale_with_normal_promotion_line.original_unit_price = Decimal('10')
         sale_with_normal_promotion.save()
         sale_with_normal_promotion.reload()
 
